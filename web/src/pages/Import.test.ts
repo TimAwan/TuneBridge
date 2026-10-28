@@ -7,7 +7,7 @@ const { authorizeMock, loadMusicKitMock, getMyStorefrontMock, createPlaylistMock
   const authorizeMock = vi.fn(async () => {});
   const loadMusicKitMock = vi.fn(async () => ({
     authorize: authorizeMock,
-    musicUserToken: () => 'mut-1',
+    musicUserToken: (): string => 'mut-1',
   }));
   const getMyStorefrontMock = vi.fn(async () => 'CN');
   const createPlaylistMock = vi.fn(async (_name: string, trackIds: string[]) => ({

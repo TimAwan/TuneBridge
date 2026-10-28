@@ -88,7 +88,10 @@ export async function createPlaylistWithTracks(
       headers: headers(mut, devToken),
       body: JSON.stringify({ attributes: { name } }),
     });
-    if (!emptyRes.ok) throw new Error(`创建歌单失败(${emptyRes.status})`);
+    if (!emptyRes.ok) {
+      const detail = (await emptyRes.text().catch(() => '')).slice(0, 200);
+      throw new Error(`创建歌单失败(${emptyRes.status})${detail ? `:${detail}` : ''}`);
+    }
     const created = (await emptyRes.json()) as { data?: Array<{ id?: string }> };
     playlistId = created.data?.[0]?.id ?? '';
     if (!playlistId) throw new Error('创建歌单失败:未返回歌单 ID');

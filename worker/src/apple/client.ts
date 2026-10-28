@@ -1,6 +1,6 @@
 import type { AppleSong } from '@tunebridge/shared';
-import { MemoryLruCache } from '../cache/memory';
-import { normalizeForSearch, splitArtists } from '../text/normalize';
+import { isrcKey, MemoryLruCache, searchKey } from '../cache/memory';
+import { splitArtists } from '../text/normalize';
 
 export class AppleApiError extends Error {
   constructor(message: string, public readonly status: number) {
@@ -30,7 +30,7 @@ const API_BASE = 'https://api.music.apple.com/v1/catalog';
 
 const DEFAULT_SLEEP = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-class Semaphore {
+export class Semaphore {
   private active = 0;
   private waiters: Array<() => void> = [];
   constructor(private readonly limit: number) {}
@@ -154,12 +154,10 @@ export function createAppleClient(opts: CreateAppleClientOpts): AppleFetchers {
 
   return {
     search(term, storefront) {
-      const key = `search:${storefront}:${normalizeForSearch(term)}`;
-      return run(key, () => `${API_BASE}/${storefront}/search?term=${encodeURIComponent(term)}&types=songs&limit=10`);
+      return run(searchKey(storefront, term), () => `${API_BASE}/${storefront}/search?term=${encodeURIComponent(term)}&types=songs&limit=10`);
     },
     findByIsrc(isrcs, storefront) {
-      const key = `isrc:${storefront}:${[...isrcs].sort().join(',')}`;
-      return run(key, () => `${API_BASE}/${storefront}/songs?filter[isrc]=${isrcs.join(',')}`);
+      return run(isrcKey(storefront, isrcs), () => `${API_BASE}/${storefront}/songs?filter[isrc]=${isrcs.join(',')}`);
     },
   };
 }

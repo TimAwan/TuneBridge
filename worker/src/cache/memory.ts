@@ -1,6 +1,15 @@
 import type { AppleSong } from '@tunebridge/shared';
+import { normalizeForSearch } from '../text/normalize';
 
 const encoder = new TextEncoder();
+
+export function searchKey(storefront: string, term: string): string {
+  return `search:${storefront}:${normalizeForSearch(term)}`;
+}
+
+export function isrcKey(storefront: string, isrcs: string[]): string {
+  return `isrc:${storefront}:${[...isrcs].sort().join(',')}`;
+}
 
 interface Entry {
   value: AppleSong[];
@@ -28,7 +37,11 @@ export class MemoryLruCache {
   }
 
   set(key: string, value: AppleSong[], opts: { empty: boolean }, now: number = Date.now()): void {
-    this.writeEntry(key, value, opts.empty, now);
+    this.writeEntry(key, value, now + (opts.empty ? this.emptyTtlMs : this.hitTtlMs));
+  }
+
+  restore(key: string, value: AppleSong[], expiresAt: number): void {
+    this.writeEntry(key, value, expiresAt);
   }
 
   private readKey(key: string, now: number): { value: AppleSong[]; expiresAt: number } | null {
@@ -43,11 +56,11 @@ export class MemoryLruCache {
     return { value: entry.value, expiresAt: entry.expiresAt };
   }
 
-  private writeEntry(key: string, value: AppleSong[], empty: boolean, now: number): void {
+  private writeEntry(key: string, value: AppleSong[], expiresAt: number): void {
     const bytes = encoder.encode(JSON.stringify(value)).length;
     const existing = this.map.get(key);
     if (existing) this.drop(key, existing);
-    const entry: Entry = { value, bytes, expiresAt: now + (empty ? this.emptyTtlMs : this.hitTtlMs) };
+    const entry: Entry = { value, bytes, expiresAt };
     this.map.set(key, entry);
     this.totalBytes += bytes;
     while (

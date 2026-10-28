@@ -1,3 +1,3 @@
 <template>
-  <h1>TuneBridge</h1>
+  <RouterView />
 </template>

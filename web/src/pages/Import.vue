@@ -52,9 +52,16 @@ const targets = computed<Target[]>(() => {
   return out;
 });
 
-const accountMismatch = computed(
-  () => authorized.value && userStorefront.value !== '' && snapshot.value !== null && userStorefront.value !== snapshot.value.storefront,
-);
+const accountMismatch = computed(() => {
+  const selected = snapshot.value?.storefront?.toUpperCase();
+  return (
+    authorized.value &&
+    userStorefront.value !== '' &&
+    selected !== undefined &&
+    selected !== '' &&
+    userStorefront.value !== selected
+  );
+});
 
 const crossTargets = computed(() =>
   accountMismatch.value ? targets.value.filter((t) => t.storefront !== userStorefront.value) : [],
@@ -83,7 +90,7 @@ async function authorize(): Promise<void> {
     const mk = await loadMusicKit(devToken.value);
     await mk.authorize();
     const mut = mk.musicUserToken();
-    userStorefront.value = await getMyStorefront(mut, devToken.value);
+    userStorefront.value = (await getMyStorefront(mut, devToken.value)).toUpperCase();
     authorized.value = true;
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : '授权失败,请重试';

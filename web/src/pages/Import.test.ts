@@ -127,6 +127,17 @@ describe('Import 页面', () => {
     expect(trackIds).toEqual(['a1']); // b1 被排除
   });
 
+  it('treats lowercase storefront codes as equal (apple returns cn not CN)', async () => {
+    getMyStorefrontMock.mockResolvedValueOnce('cn'); // 快照所选是 CN
+    const wrapper = mount(Import, { props: { jobId: 'job-1' }, global: { plugins: [router] } });
+    await flushPromises();
+    await wrapper.find('button.authorize').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('已授权');
+    expect(wrapper.find('.mismatch').exists()).toBe(false);
+    expect(wrapper.find('.cross-region').exists()).toBe(false);
+  });
+
   it('imports with playlist name defaulting to source name', async () => {
     const wrapper = mount(Import, { props: { jobId: 'job-1' }, global: { plugins: [router] } });
     await flushPromises();

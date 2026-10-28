@@ -112,11 +112,31 @@ export class CacheDO extends DurableObject implements PersistentStore {
     const bytes =
       [...this.ctx.storage.sql.exec<{ n: number }>('SELECT COALESCE(SUM(LENGTH(payload)), 0) AS n FROM rows')][0]?.n ?? 0;
     if (bytes > MAX_BYTES) {
-      const over = bytes - MAX_BYTES;
       this.ctx.storage.sql.exec(
         `DELETE FROM rows WHERE key IN (SELECT key FROM rows ORDER BY storedAt ASC LIMIT (SELECT COUNT(*) FROM rows) / 2)`,
       );
-      void over;
     }
   }
+
+  async alarm(): Promise<void> {
+    await this.sweep(Date.now());
+    await this.ctx.storage.setAlarm(Date.now() + SWEEP_INTERVAL_MS);
+  }
+}
+
+const SWEEP_INTERVAL_MS = 3600 * 1000;
+
+interface CacheRpc {
+  get(key: string): Promise<CachedRow | null>;
+  put(row: CachedRow): Promise<void>;
+  sweep(now: number): Promise<void>;
+}
+
+export function durablePersistentStore(namespace: DurableObjectNamespace): PersistentStore {
+  const stub = namespace.get(namespace.idFromName('global')) as unknown as CacheRpc;
+  return {
+    get: (key) => stub.get(key),
+    put: (row) => stub.put(row),
+    sweep: (now) => stub.sweep(now),
+  };
 }

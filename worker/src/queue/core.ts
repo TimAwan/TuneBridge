@@ -215,6 +215,11 @@ export class QueueCore {
     return this.jobs.get(jobId)?.choices ?? null;
   }
 
+  getInput(jobId: string): { url: string; storefront: string } | null {
+    const job = this.jobs.get(jobId);
+    return job ? { url: job.url, storefront: job.storefront } : null;
+  }
+
   finish(jobId: string, now: number): void {
     const job = this.transition(jobId, 'done', ['awaiting_confirmation', 'importing']);
     if (job.startedAt !== null) {

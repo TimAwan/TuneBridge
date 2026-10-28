@@ -59,6 +59,12 @@ wrangler secret put APPLE_MUSIC_TEAM_ID
 wrangler secret put APPLE_MUSIC_KEY_ID
 ```
 
+也可以不配三件套、直填一个现成的 Developer Token(快速联调用;它有 `exp` 有效期,到期要手动换新,Worker 不会自动续):
+
+```bash
+wrangler secret put APPLE_MUSIC_DEV_TOKEN   # eyJhbGciOiJFUzI1NiIs... 的 JWT 原文
+```
+
 4. 打开 `https://tunebridge-worker.<你的子域>.workers.dev/`(或自定义域名),完成。
 
 ## 容量与限额(免费套餐)

@@ -1,7 +1,13 @@
 # 复制为 .dev.vars(wrangler dev 本地生效);生产用 wrangler secret put 配置同名项
+#
+# 方式一(推荐):配三件套,Worker 自动签发 Developer Token 并在临期时自动续
 # Apple Developer 后台 Keys → Media IDs → 创建 MusicKit 私钥后下载 .p8,把内容压成单行(\n 转义)
 APPLE_MUSIC_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIG...\n-----END PRIVATE KEY-----"
 # Membership 页面的 Team ID(10 位)
 APPLE_MUSIC_TEAM_ID="ABCDE12345"
 # 私钥详情页的 Key ID
 APPLE_MUSIC_KEY_ID="P123456789"
+
+# 方式二(快速联调):直填现成的 Developer Token(eyJhbGciOiJFUzI1NiIs... 的 JWT),
+# 配了它就忽略上面三件套;注意它有有效期(exp),到期需手动换新
+# APPLE_MUSIC_DEV_TOKEN="eyJhbGciOiJFUzI1NiIs..."

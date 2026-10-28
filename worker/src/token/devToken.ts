@@ -57,6 +57,28 @@ export interface SignDeveloperTokenOpts {
   now?: number;
 }
 
+export interface AppleTokenEnv {
+  APPLE_MUSIC_DEV_TOKEN?: string;
+  APPLE_MUSIC_PRIVATE_KEY?: string;
+  APPLE_MUSIC_TEAM_ID?: string;
+  APPLE_MUSIC_KEY_ID?: string;
+}
+
+/** 直填 token 优先(即将到期的静态 JWT);未配置则用 .p8 三件套签发 */
+export async function resolveDeveloperToken(env: AppleTokenEnv): Promise<string> {
+  if (env.APPLE_MUSIC_DEV_TOKEN && env.APPLE_MUSIC_DEV_TOKEN.length > 0) {
+    return env.APPLE_MUSIC_DEV_TOKEN;
+  }
+  if (!env.APPLE_MUSIC_PRIVATE_KEY || !env.APPLE_MUSIC_TEAM_ID || !env.APPLE_MUSIC_KEY_ID) {
+    throw new Error('未配置 Apple Music 密钥(配 APPLE_MUSIC_DEV_TOKEN 或三件套)');
+  }
+  return signDeveloperToken({
+    privateKeyPem: env.APPLE_MUSIC_PRIVATE_KEY,
+    teamId: env.APPLE_MUSIC_TEAM_ID,
+    keyId: env.APPLE_MUSIC_KEY_ID,
+  });
+}
+
 export async function signDeveloperToken(opts: SignDeveloperTokenOpts): Promise<string> {
   const { teamId, keyId, privateKeyPem } = opts;
   const now = opts.now ?? Math.floor(Date.now() / 1000);

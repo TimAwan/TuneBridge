@@ -1,6 +1,6 @@
 import type { JobEvent, JobSnapshot } from '@tunebridge/shared';
 import { createApi, type QueueService } from './api/routes';
-import { signDeveloperToken } from './token/devToken';
+import { resolveDeveloperToken } from './token/devToken';
 
 export { CacheDO } from './do/cache';
 export { QueueDO } from './do/queue';
@@ -8,9 +8,10 @@ export { QueueDO } from './do/queue';
 export interface Env {
   QUEUE: DurableObjectNamespace;
   CACHE: DurableObjectNamespace;
-  APPLE_MUSIC_PRIVATE_KEY: string;
-  APPLE_MUSIC_TEAM_ID: string;
-  APPLE_MUSIC_KEY_ID: string;
+  APPLE_MUSIC_DEV_TOKEN?: string;
+  APPLE_MUSIC_PRIVATE_KEY?: string;
+  APPLE_MUSIC_TEAM_ID?: string;
+  APPLE_MUSIC_KEY_ID?: string;
 }
 
 interface QueueRpc {
@@ -34,12 +35,7 @@ export default {
       complete: (jobId) => stub.complete(jobId),
     };
     const app = createApi(service, {
-      getDeveloperToken: () =>
-        signDeveloperToken({
-          privateKeyPem: env.APPLE_MUSIC_PRIVATE_KEY,
-          teamId: env.APPLE_MUSIC_TEAM_ID,
-          keyId: env.APPLE_MUSIC_KEY_ID,
-        }),
+      getDeveloperToken: () => resolveDeveloperToken(env),
     });
     return app.fetch(req, env, undefined as never);
   },

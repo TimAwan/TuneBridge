@@ -9,16 +9,17 @@ import { PlaylistFetchError } from '../playlist/adapter';
 import { detectPlatform } from '../playlist/detect';
 import { QueueCore, type ConfirmChoice, type SerializedQueue, type SubmitInput } from '../queue/core';
 import { runJob } from '../queue/runner';
-import { signDeveloperToken } from '../token/devToken';
+import { resolveDeveloperToken } from '../token/devToken';
 
 const ALARM_INTERVAL_MS = 3600 * 1000;
 const EVENT_LOG_CAP = 500;
 
 interface QueueEnv {
-  CACHE: DurableObjectNamespace;
-  APPLE_MUSIC_PRIVATE_KEY: string;
-  APPLE_MUSIC_TEAM_ID: string;
-  APPLE_MUSIC_KEY_ID: string;
+  CACHE?: DurableObjectNamespace;
+  APPLE_MUSIC_DEV_TOKEN?: string;
+  APPLE_MUSIC_PRIVATE_KEY?: string;
+  APPLE_MUSIC_TEAM_ID?: string;
+  APPLE_MUSIC_KEY_ID?: string;
 }
 
 export class QueueDO extends DurableObject {
@@ -60,12 +61,7 @@ export class QueueDO extends DurableObject {
       const env = this.queueEnv;
       const client = createAppleClient({
         fetchFn: fetch,
-        getDevToken: () =>
-          signDeveloperToken({
-            privateKeyPem: env.APPLE_MUSIC_PRIVATE_KEY,
-            teamId: env.APPLE_MUSIC_TEAM_ID,
-            keyId: env.APPLE_MUSIC_KEY_ID,
-          }),
+        getDevToken: () => resolveDeveloperToken(env),
       });
       const persistent: PersistentStore | null = env.CACHE
         ? durablePersistentStore(env.CACHE)

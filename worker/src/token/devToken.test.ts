@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { signDeveloperToken } from './devToken';
+import { resolveDeveloperToken, signDeveloperToken } from './devToken';
 
 const DAY = 86400;
 
@@ -21,6 +21,35 @@ async function makeKeyPem(): Promise<{ pem: string; publicKey: CryptoKey }> {
   const pkcs8 = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
   return { pem: abToPem(pkcs8), publicKey: kp.publicKey };
 }
+
+describe('resolveDeveloperToken', () => {
+  it('returns the static token as-is without touching the private key', async () => {
+    const token = await resolveDeveloperToken({
+      APPLE_MUSIC_DEV_TOKEN: 'static-token-abc',
+      APPLE_MUSIC_PRIVATE_KEY: '',
+      APPLE_MUSIC_TEAM_ID: '',
+      APPLE_MUSIC_KEY_ID: '',
+    });
+    expect(token).toBe('static-token-abc');
+  });
+
+  it('falls back to signing when no static token is set', async () => {
+    const fixturePem = readFileSync(
+      join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures', 'key.pem'),
+      'utf8',
+    );
+    const token = await resolveDeveloperToken({
+      APPLE_MUSIC_PRIVATE_KEY: fixturePem,
+      APPLE_MUSIC_TEAM_ID: 'TEAMRR',
+      APPLE_MUSIC_KEY_ID: 'KEYRR',
+    });
+    expect(token.split('.')).toHaveLength(3);
+  });
+
+  it('throws a chinese error when nothing is configured', async () => {
+    await expect(resolveDeveloperToken({})).rejects.toThrow('未配置 Apple Music 密钥');
+  });
+});
 
 describe('signDeveloperToken', () => {
   it('produces a verifiable ES256 jwt with correct claims', async () => {

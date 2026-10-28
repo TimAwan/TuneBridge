@@ -64,19 +64,40 @@ describe('createPlaylistWithTracks', () => {
     expect(progress.every((p) => p.total === 250)).toBe(true);
   });
 
-  it('records failed track ids per failed batch', async () => {
+  it('falls back to per-track adds when a chunk fails, isolating the bad id', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith('/playlists')) return jsonResponse({ data: [{ id: 'pl-1' }] });
-      if (url.includes('/tracks')) {
-        const body = JSON.parse(String(init?.body ?? '{}')) as { data: Array<{ id: string }> };
-        if (body.data.some((d) => d.id === 's101')) return jsonResponse({}, 500);
-      }
+      const body = JSON.parse(String(init?.body ?? '{}')) as { data: Array<{ id: string }> };
+      if (body.data.length > 1 && body.data.some((d) => d.id === 's105')) return jsonResponse({}, 500);
+      if (body.data.length === 1 && body.data[0].id === 's105') return jsonResponse({}, 400);
       return jsonResponse({});
     });
     const result = await createPlaylistWithTracks('n', ids(150), 'mut', 'dev', undefined, fetchMock as unknown as typeof fetch);
     expect(result.playlistId).toBe('pl-1');
-    expect(result.added).toHaveLength(100);
-    expect(result.failed).toEqual(Array.from({ length: 50 }, (_, i) => `s${i + 101}`));
+    expect(result.added).toHaveLength(149);
+    expect(result.failed).toEqual(['s105']);
+  });
+
+  it('falls back to empty create + per-track adds when the first create fails', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = JSON.parse(String(init?.body ?? '{}')) as {
+        data?: Array<{ id: string }>;
+        relationships?: { tracks?: { data?: Array<{ id: string }> } };
+      };
+      const carried = body.data ?? body.relationships?.tracks?.data ?? [];
+      if (url.endsWith('/playlists') && carried.length > 0) {
+        return jsonResponse({}, 400); // 带曲目的创建因跨区 ID 失败
+      }
+      if (url.endsWith('/playlists')) return jsonResponse({ data: [{ id: 'pl-2' }] }); // 空创建成功
+      if (carried.length > 1) return jsonResponse({}, 500);
+      if (carried.length === 1 && carried[0].id === 's2') return jsonResponse({}, 400);
+      return jsonResponse({});
+    });
+    const result = await createPlaylistWithTracks('n', ids(3), 'mut', 'dev', undefined, fetchMock as unknown as typeof fetch);
+    expect(result.playlistId).toBe('pl-2');
+    expect(result.failed).toEqual(['s2']);
+    expect(result.added).toHaveLength(2);
   });
 });

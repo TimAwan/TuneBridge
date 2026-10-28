@@ -95,6 +95,7 @@ export function useJobStream(jobId: Ref<string>) {
   }
 
   start();
+  refreshFullSnapshot(); // 健康 SSE 下也要有首帧(排队位置/ETA 只在快照里)
   onUnmounted(stop);
 
   return { snapshot, source };

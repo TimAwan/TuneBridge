@@ -89,49 +89,61 @@ export class QueueDO extends DurableObject {
       if (!jobId) return;
       const input = this.core.getInput(jobId);
       if (!input) return;
-      await runJob(jobId, input.url, input.storefront, {
-        queue: {
-          markParsing: (id: string) => {
-            this.core.markParsing(id);
-            void this.persist();
+      try {
+        await runJob(jobId, input.url, input.storefront, {
+          queue: {
+            markParsing: (id: string) => {
+              this.core.markParsing(id);
+              void this.persist();
+            },
+            markMatching: (id: string) => {
+              this.core.markMatching(id);
+              void this.persist();
+            },
+            setParsed: (id: string, parsed: Parameters<QueueCore['setParsed']>[1]) => {
+              const ok = this.core.setParsed(id, parsed);
+              void this.persist();
+              return ok;
+            },
+            setResults: (id: string, results: Parameters<QueueCore['setResults']>[1]) => {
+              this.core.setResults(id, results);
+              void this.persist();
+            },
+            fail: (id: string, message: string, now: number) => {
+              this.core.fail(id, message, now);
+              void this.persist();
+            },
           },
-          markMatching: (id: string) => {
-            this.core.markMatching(id);
-            void this.persist();
+          fetchers: this.getFetchers(),
+          loadAdapter: (url: string) => {
+            const platform = detectPlatform(url);
+            if (!platform) throw new PlaylistFetchError('无法识别的歌单链接');
+            return { adapter: getAdapter(platform), platform };
           },
-          setParsed: (id: string, parsed: Parameters<QueueCore['setParsed']>[1]) => {
-            this.core.setParsed(id, parsed);
-            void this.persist();
-          },
-          setResults: (id: string, results: Parameters<QueueCore['setResults']>[1]) => {
-            this.core.setResults(id, results);
-            void this.persist();
-          },
-          fail: (id: string, message: string, now: number) => {
-            this.core.fail(id, message, now);
-            void this.persist();
-          },
-        },
-        fetchers: this.getFetchers(),
-        loadAdapter: (url: string) => {
-          const platform = detectPlatform(url);
-          if (!platform) throw new PlaylistFetchError('无法识别的歌单链接');
-          return { adapter: getAdapter(platform), platform };
-        },
-        emit: (id, event) => this.emit(id, event),
-      });
+          emit: (id, event) => this.emit(id, event),
+        });
+      } catch (err) {
+        // 单个任务的异常不得拖垮整个队列
+        console.error(`job ${jobId} crashed`, err);
+        try {
+          this.core.fail(jobId, '任务处理异常,已中止', Date.now());
+          void this.persist();
+        } catch {
+          // 任务可能已被置为终态
+        }
+      }
     }
   }
 
-  admit(ip: string, now: number): { ok: true } | { ok: false; reason: string } {
-    return this.core.admit(ip, now);
-  }
-
-  async submitJob(input: SubmitInput): Promise<{ jobId: string }> {
+  submitJob(
+    input: SubmitInput,
+  ): { ok: true; jobId: string } | { ok: false; reason: string } {
+    const admitted = this.core.admit(input.ip, Date.now());
+    if (!admitted.ok) return admitted;
     const result = this.core.submit(input, Date.now());
-    await this.persist();
+    void this.persist();
     this.kick();
-    return result;
+    return { ok: true, jobId: result.jobId };
   }
 
   async get(jobId: string): Promise<{ snapshot: JobSnapshot | null }> {

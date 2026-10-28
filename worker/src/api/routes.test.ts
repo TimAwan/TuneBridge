@@ -21,8 +21,7 @@ function snapshot(over: Partial<JobSnapshot> = {}): JobSnapshot {
 
 function makeService(over: Partial<QueueService> = {}): QueueService {
   return {
-    admit: async () => ({ ok: true }),
-    submit: async () => ({ jobId: 'job-1' }),
+    submit: async () => ({ ok: true as const, jobId: 'job-1' }),
     snapshot: async (id: string) => (id === 'job-1' ? snapshot() : null),
     events: async () => [] as Array<{ seq: number; event: JobEvent }>,
     confirm: async () => true,
@@ -57,7 +56,11 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 429 with reason when admission denies', async () => {
-    const app = createApi(makeService({ admit: async () => ({ ok: false, reason: '今日提交次数已达上限(5 次)' }) }));
+    const app = createApi(
+      makeService({
+        submit: async () => ({ ok: false as const, reason: '今日提交次数已达上限(5 次)' }),
+      }),
+    );
     const res = await app.request('/api/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

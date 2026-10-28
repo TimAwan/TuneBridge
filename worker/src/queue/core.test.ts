@@ -129,7 +129,7 @@ describe('QueueCore 排队与 ETA', () => {
 });
 
 describe('QueueCore 保留与清理', () => {
-  it('cleans done/failed after 24h but keeps awaiting_confirmation', () => {
+  it('cleans all jobs after 24h including abandoned awaiting_confirmation', () => {
     const q = new QueueCore();
     const t0 = 1_000_000;
     const doneId = completeJob(q, '1', t0, t0 + 100);
@@ -146,9 +146,15 @@ describe('QueueCore 保留与清理', () => {
     const removed = q.cleanup(t0 + 24 * 3600 * 1000 + 1);
     expect(removed).toContain(doneId);
     expect(removed).toContain(failed.jobId);
-    expect(removed).not.toContain(waiting.jobId);
+    expect(removed).toContain(waiting.jobId);
     expect(q.get(doneId)).toBeNull();
-    expect(q.get(waiting.jobId)?.state).toBe('awaiting_confirmation');
+    expect(q.get(waiting.jobId)).toBeNull();
+  });
+
+  it('generates unguessable job ids', () => {
+    const q = new QueueCore();
+    const { jobId } = q.submit({ url: 'u', storefront: 'CN', ip: '1' }, 1);
+    expect(jobId).toMatch(/^job-1-[0-9a-f]{8,}$/);
   });
 });
 

@@ -44,11 +44,22 @@ describe('useJobStream', () => {
     vi.unstubAllGlobals();
   });
 
-  it('subscribes over sse first', () => {
-    const { source } = useJobStream(ref('job-1'));
+  it('subscribes over sse first and loads an initial snapshot', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(snapshot({ state: 'queued', queuePosition: 2 })), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { source, snapshot: snap } = useJobStream(ref('job-1'));
     expect(FakeEventSource.instances).toHaveLength(1);
     expect(FakeEventSource.instances[0].url).toBe('/api/jobs/job-1/events');
     expect(source.value).toBe('sse');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(snap.value?.queuePosition).toBe(2); // 健康 SSE 下也能看到排队位置
+    vi.unstubAllGlobals();
   });
 
   it('updates snapshot from sse messages', () => {
@@ -73,13 +84,13 @@ describe('useJobStream', () => {
     expect(FakeEventSource.instances).toHaveLength(1); // 没有重建 SSE
 
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/jobs/job-1');
+    expect(fetchMock).toHaveBeenCalledTimes(2); // 首帧快照 + 首次轮询
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/jobs/job-1');
     expect(snap.value?.progress).toEqual({ done: 5, total: 10 });
 
     await vi.advanceTimersByTimeAsync(3000);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(3000);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

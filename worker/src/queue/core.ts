@@ -88,7 +88,8 @@ export class QueueCore {
   }
 
   submit(input: SubmitInput, now: number): { jobId: string } {
-    const id = `job-${this.nextId++}`;
+    const random = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+    const id = `job-${this.nextId++}-${random}`;
     const record: JobRecord = {
       id,
       url: input.url,
@@ -187,16 +188,18 @@ export class QueueCore {
     this.transition(jobId, 'matching', ['parsing']);
   }
 
-  setParsed(jobId: string, parsed: ParsedPlaylist): void {
+  /** 超过曲目上限时任务转 failed 并返回 false,调用方须立即停止处理 */
+  setParsed(jobId: string, parsed: ParsedPlaylist): boolean {
     const job = this.jobs.get(jobId);
     if (!job) throw new Error(`任务不存在:${jobId}`);
     if (job.state !== 'parsing') throw new Error(`非法状态迁移:${job.state} → setParsed`);
     if (parsed.tracks.length > this.trackCap) {
       this.fail(jobId, `歌单曲目数超过上限(${this.trackCap} 首),已拒绝处理`, Date.now());
-      return;
+      return false;
     }
     job.parsed = parsed;
     job.progress = { done: 0, total: parsed.tracks.length };
+    return true;
   }
 
   setResults(jobId: string, results: MatchResult[]): void {
@@ -245,7 +248,7 @@ export class QueueCore {
   cleanup(now: number): string[] {
     const removed: string[] = [];
     for (const [id, job] of this.jobs) {
-      if ((job.state === 'done' || job.state === 'failed') && now - job.createdAt > RETENTION_MS) {
+      if (now - job.createdAt > RETENTION_MS) {
         this.jobs.delete(id);
         this.order = this.order.filter((x) => x !== id);
         removed.push(id);

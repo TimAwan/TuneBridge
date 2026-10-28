@@ -46,7 +46,7 @@ function makeDeps(parsed: ParsedPlaylist, fetchers: AppleFetchers, opts: { failF
     queue: {
       markParsing: (id: string) => { calls.push(`markParsing:${id}`); },
       markMatching: (id: string) => { calls.push(`markMatching:${id}`); },
-      setParsed: (id: string, p: ParsedPlaylist) => { calls.push(`setParsed:${p.tracks.length}`); },
+      setParsed: (id: string, p: ParsedPlaylist) => { calls.push(`setParsed:${p.tracks.length}`); return true; },
       setResults: (id: string, r: MatchResult[]) => { calls.push('setResults'); results = r; },
       fail: (id: string, msg: string) => { calls.push('fail'); failed = msg; },
     } as unknown as JobDeps['queue'],
@@ -160,6 +160,39 @@ describe('runJob 管线', () => {
     await runJob('job-1', 'u', 'CN', ctx.deps);
     expect(ctx.getFailed()).toContain('连续失败');
     expect(ctx.events.some((e) => e.type === 'error')).toBe(true);
+  });
+
+  it('stops cleanly when the queue rejects an over-cap playlist', async () => {
+    const tracks = Array.from({ length: 3 }, (_, i) => track({ order: i + 1 }));
+    const fetchers: AppleFetchers = {
+      async search() { return [song()]; },
+      async findByIsrc() { return []; },
+    };
+    const calls: string[] = [];
+    const events: JobEvent[] = [];
+    const deps: JobDeps = {
+      queue: {
+        markParsing: (id: string) => { calls.push('markParsing'); },
+        markMatching: () => { calls.push('markMatching'); },
+        setParsed: () => { calls.push('setParsed'); return false; },
+        setResults: () => { calls.push('setResults'); },
+        fail: (id: string, msg: string) => { calls.push(`fail:${msg}`); },
+      } as unknown as JobDeps['queue'],
+      fetchers,
+      loadAdapter: () => ({
+        platform: 'netease' as Platform,
+        adapter: {
+          platform: 'netease' as Platform,
+          extractId: () => '1',
+          fetchPlaylist: async () => playlist(tracks),
+        } satisfies PlaylistAdapter,
+      }),
+      emit: (_id, event) => { events.push(event); },
+    };
+    await expect(runJob('job-1', 'u', 'CN', deps)).resolves.toBeUndefined();
+    expect(calls).toEqual(['markParsing', 'setParsed']);
+    expect(events.some((e) => e.type === 'error')).toBe(true);
+    expect(calls).not.toContain('markMatching');
   });
 
   it('propagates playlist fetch failures', async () => {

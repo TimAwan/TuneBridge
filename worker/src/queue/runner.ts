@@ -14,7 +14,9 @@ const TIER_RANK: Record<MatchResult['tier'], number> = { auto: 2, confirm: 1, no
 class BreakerError extends Error {}
 
 export interface JobDeps {
-  queue: Pick<QueueCore, 'markParsing' | 'markMatching' | 'setParsed' | 'setResults' | 'fail'>;
+  queue: Pick<QueueCore, 'markParsing' | 'markMatching' | 'setResults' | 'fail'> & {
+    setParsed(jobId: string, parsed: ParsedPlaylist): boolean;
+  };
   fetchers: AppleFetchers;
   loadAdapter(url: string): { adapter: PlaylistAdapter; platform: Platform };
   emit(jobId: string, event: JobEvent): void;
@@ -75,7 +77,11 @@ export async function runJob(
     failJob(err instanceof PlaylistFetchError ? err.message : '解析歌单失败,请稍后重试');
     return;
   }
-  queue.setParsed(jobId, parsed);
+  if (!queue.setParsed(jobId, parsed)) {
+    // 超过曲目上限:队列已将任务置为 failed,立即停止,不得再进入 matching
+    emit(jobId, { type: 'error', message: '歌单曲目数超过上限,已拒绝处理' });
+    return;
+  }
   emit(jobId, { type: 'progress', phase: 'parsing', done: parsed.tracks.length, total: parsed.tracks.length });
 
   // —— 匹配 ——

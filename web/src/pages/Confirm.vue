@@ -60,7 +60,7 @@ async function submit(): Promise<void> {
         appleId: selection.value.get(r.order) ?? null,
       })),
     ]);
-    await router.push(`/job/${jobId.value}`);
+    await router.push(`/job/${jobId.value}/import`);
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : '提交失败,请稍后重试';
   } finally {

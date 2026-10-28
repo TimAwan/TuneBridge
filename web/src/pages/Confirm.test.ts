@@ -69,6 +69,7 @@ function snapshot(): JobSnapshot {
     },
     progress: { done: 5, total: 5 },
     results: results(),
+    choices: null,
     error: null,
   };
 }

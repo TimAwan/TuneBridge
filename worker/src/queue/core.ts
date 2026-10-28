@@ -125,6 +125,7 @@ export class QueueCore {
       parsed: job.parsed,
       progress: job.progress,
       results: job.results,
+      choices: job.choices,
       error: job.error,
     };
   }

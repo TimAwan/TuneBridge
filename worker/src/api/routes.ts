@@ -9,6 +9,7 @@ export interface QueueService {
   snapshot(jobId: string): Promise<JobSnapshot | null>;
   events(jobId: string, sinceSeq: number): Promise<Array<{ seq: number; event: JobEvent }>>;
   confirm(jobId: string, choices: Array<{ order: number; appleId: string | null }>): Promise<boolean>;
+  complete(jobId: string): Promise<boolean>;
 }
 
 export interface ApiOpts {
@@ -61,6 +62,15 @@ export function createApi(service: QueueService, opts: ApiOpts = {}): Hono {
       | null;
     const ok = await service.confirm(jobId, body?.choices ?? []);
     if (!ok) return c.json({ error: '当前状态不可确认' }, 409);
+    const snapshot = await service.snapshot(jobId);
+    if (!snapshot) return c.json({ error: '任务不存在' }, 404);
+    return c.json(snapshot);
+  });
+
+  app.post('/api/jobs/:id/complete', async (c) => {
+    const jobId = c.req.param('id');
+    const ok = await service.complete(jobId);
+    if (!ok) return c.json({ error: '当前状态不可结束' }, 409);
     const snapshot = await service.snapshot(jobId);
     if (!snapshot) return c.json({ error: '任务不存在' }, 404);
     return c.json(snapshot);

@@ -19,6 +19,7 @@ interface QueueRpc {
   get(jobId: string): Promise<{ snapshot: JobSnapshot | null }>;
   getEvents(jobId: string, sinceSeq: number): Promise<{ events: Array<{ seq: number; event: JobEvent }> }>;
   confirm(jobId: string, choices: Array<{ order: number; appleId: string | null }>): Promise<boolean>;
+  complete(jobId: string): Promise<boolean>;
 }
 
 export default {
@@ -30,6 +31,7 @@ export default {
       snapshot: async (jobId) => (await stub.get(jobId)).snapshot,
       events: async (jobId, sinceSeq) => (await stub.getEvents(jobId, sinceSeq)).events,
       confirm: (jobId, choices) => stub.confirm(jobId, choices),
+      complete: (jobId) => stub.complete(jobId),
     };
     const app = createApi(service, {
       getDeveloperToken: () =>

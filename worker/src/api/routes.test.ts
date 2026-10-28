@@ -13,6 +13,7 @@ function snapshot(over: Partial<JobSnapshot> = {}): JobSnapshot {
     parsed: null,
     progress: null,
     results: null,
+    choices: null,
     error: null,
     ...over,
   };
@@ -25,6 +26,7 @@ function makeService(over: Partial<QueueService> = {}): QueueService {
     snapshot: async (id: string) => (id === 'job-1' ? snapshot() : null),
     events: async () => [] as Array<{ seq: number; event: JobEvent }>,
     confirm: async () => true,
+    complete: async () => false,
     ...over,
   };
 }
@@ -128,6 +130,27 @@ describe('POST /api/jobs/:id/confirm', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ choices: [] }),
     });
+    expect(res.status).toBe(409);
+  });
+});
+
+describe('POST /api/jobs/:id/complete', () => {
+  it('returns the finished snapshot', async () => {
+    const app = createApi(
+      makeService({
+        complete: async () => true,
+        snapshot: async () => snapshot({ state: 'done' }),
+      }),
+    );
+    const res = await app.request('/api/jobs/job-1/complete', { method: 'POST' });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as JobSnapshot;
+    expect(body.state).toBe('done');
+  });
+
+  it('returns 409 when the job cannot complete', async () => {
+    const app = createApi(makeService({ complete: async () => false }));
+    const res = await app.request('/api/jobs/job-1/complete', { method: 'POST' });
     expect(res.status).toBe(409);
   });
 });

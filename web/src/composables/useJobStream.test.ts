@@ -27,6 +27,7 @@ function snapshot(over: Partial<JobSnapshot> = {}): JobSnapshot {
     parsed: null,
     progress: { done: 2, total: 10 },
     results: null,
+    choices: null,
     error: null,
     ...over,
   };

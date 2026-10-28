@@ -83,6 +83,8 @@ export interface JobSnapshot {
   /** 解析与匹配共用 */
   progress: JobProgress | null;
   results: MatchResult[] | null;
+  /** 用户确认后的选择(applyConfirm 之后有值) */
+  choices: Array<{ order: number; appleId: string | null }> | null;
   error: string | null;
 }
 

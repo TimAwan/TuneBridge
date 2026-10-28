@@ -149,6 +149,16 @@ export class QueueDO extends DurableObject {
     return ok;
   }
 
+  async complete(jobId: string): Promise<boolean> {
+    try {
+      this.core.finish(jobId, Date.now());
+    } catch {
+      return false;
+    }
+    await this.persist();
+    return true;
+  }
+
   getChoices(jobId: string): { choices: ConfirmChoice[] | null } {
     return { choices: this.core.getChoices(jobId) };
   }

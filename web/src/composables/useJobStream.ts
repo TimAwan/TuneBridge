@@ -46,6 +46,7 @@ export function useJobStream(jobId: Ref<string>) {
             parsed: null,
             progress: null,
             results: null,
+            choices: null,
             error: null,
           };
         } else {

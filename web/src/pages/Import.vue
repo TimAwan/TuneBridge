@@ -90,6 +90,10 @@ async function authorize(): Promise<void> {
     const mk = await loadMusicKit(devToken.value);
     await mk.authorize();
     const mut = mk.musicUserToken();
+    if (!mut) {
+      loadError.value = '未获取到用户授权令牌,请重新点击授权';
+      return;
+    }
     userStorefront.value = (await getMyStorefront(mut, devToken.value)).toUpperCase();
     authorized.value = true;
   } catch (err) {

@@ -127,6 +127,19 @@ describe('Import 页面', () => {
     expect(trackIds).toEqual(['a1']); // b1 被排除
   });
 
+  it('rejects authorize when music user token is empty', async () => {
+    loadMusicKitMock.mockResolvedValueOnce({
+      authorize: authorizeMock,
+      musicUserToken: () => '',
+    });
+    const wrapper = mount(Import, { props: { jobId: 'job-1' }, global: { plugins: [router] } });
+    await flushPromises();
+    await wrapper.find('button.authorize').trigger('click');
+    await flushPromises();
+    expect(wrapper.text()).toContain('授权令牌');
+    expect(wrapper.text()).not.toContain('已授权');
+  });
+
   it('treats lowercase storefront codes as equal (apple returns cn not CN)', async () => {
     getMyStorefrontMock.mockResolvedValueOnce('cn'); // 快照所选是 CN
     const wrapper = mount(Import, { props: { jobId: 'job-1' }, global: { plugins: [router] } });

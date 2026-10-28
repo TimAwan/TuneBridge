@@ -36,9 +36,12 @@ export class QueueDO extends DurableObject {
     void this.ctx.blockConcurrencyWhile(async () => {
       const saved = (await this.ctx.storage.get('state')) as SerializedQueue | undefined;
       if (saved) this.core.restore(saved);
+      const recovered = this.core.recoverInterrupted(Date.now());
+      if (saved || recovered.length > 0) await this.persist();
       if ((await this.ctx.storage.getAlarm()) === null) {
         await this.ctx.storage.setAlarm(Date.now() + ALARM_INTERVAL_MS);
       }
+      if (this.core.next(Date.now()) !== null) this.kick(); // 恢复遗留的排队任务
     });
   }
 

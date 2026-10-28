@@ -151,6 +151,21 @@ describe('QueueCore 保留与清理', () => {
     expect(q.get(waiting.jobId)).toBeNull();
   });
 
+  it('recovers jobs interrupted by a restart and refunds quota', () => {
+    const q = new QueueCore();
+    const t0 = 1_000_000;
+    const stuck = q.submit({ url: 'u', storefront: 'CN', ip: '3.3.3.3' }, t0);
+    q.markParsing(stuck.jobId);
+    q.markMatching(stuck.jobId); // 服务在此被杀,任务悬在 matching
+
+    const recovered = q.recoverInterrupted(t0 + 5000);
+    expect(recovered).toContain(stuck.jobId);
+    expect(q.get(stuck.jobId)?.state).toBe('failed');
+    expect(q.get(stuck.jobId)?.error).toContain('中断');
+    expect(q.admit('3.3.3.3', t0 + 6000).ok).toBe(true); // 配额已退还,可再次提交
+    expect(q.next(t0 + 6000)).toBeNull(); // 没有遗留排队任务
+  });
+
   it('generates unguessable job ids', () => {
     const q = new QueueCore();
     const { jobId } = q.submit({ url: 'u', storefront: 'CN', ip: '1' }, 1);

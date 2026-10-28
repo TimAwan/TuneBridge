@@ -224,6 +224,18 @@ export class QueueCore {
     return job ? { url: job.url, storefront: job.storefront } : null;
   }
 
+  /** 服务重启后,把悬在 parsing/matching 的中断任务置为失败并退还配额,避免准入被永久卡死 */
+  recoverInterrupted(now: number): string[] {
+    const recovered: string[] = [];
+    for (const job of [...this.jobs.values()]) {
+      if (RUNNING_STATES.includes(job.state)) {
+        this.fail(job.id, '服务重启,任务已中断,请重新提交', now);
+        recovered.push(job.id);
+      }
+    }
+    return recovered;
+  }
+
   finish(jobId: string, now: number): void {
     const job = this.transition(jobId, 'done', ['awaiting_confirmation', 'importing']);
     if (job.startedAt !== null) {

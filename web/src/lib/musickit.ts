@@ -21,7 +21,7 @@ function loadScript(): Promise<void> {
       return;
     }
     const script = document.createElement('script');
-    script.src = 'https://js-cdn.music.apple.com/musickit/v3/dist/index.js';
+    script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
     script.setAttribute('data-musickit', '');
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('无法加载 MusicKit JS,请检查网络'));

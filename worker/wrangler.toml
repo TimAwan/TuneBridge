@@ -2,6 +2,9 @@ name = "tunebridge-worker"
 main = "src/index.ts"
 compatibility_date = "2025-01-15"
 
+[assets]
+directory = "../web/dist"
+
 [[durable_objects.bindings]]
 name = "QUEUE"
 class_name = "QueueDO"

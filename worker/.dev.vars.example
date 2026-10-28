@@ -1,0 +1,7 @@
+# 复制为 .dev.vars(wrangler dev 本地生效);生产用 wrangler secret put 配置同名项
+# Apple Developer 后台 Keys → Media IDs → 创建 MusicKit 私钥后下载 .p8,把内容压成单行(\n 转义)
+APPLE_MUSIC_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIG...\n-----END PRIVATE KEY-----"
+# Membership 页面的 Team ID(10 位)
+APPLE_MUSIC_TEAM_ID="ABCDE12345"
+# 私钥详情页的 Key ID
+APPLE_MUSIC_KEY_ID="P123456789"
